@@ -52,20 +52,23 @@ def prepare_features(args, data, tokenizer, cache_path):
     all_features = {}
     LABELS = {}
 
+    # split = train, test or validation
     for split, examples in data.items():
         
         feats = []
-        # task1: process examples using tokenizer. Wrap it using BaseInstance class and append it to feats list.
+        # example = {label='alarm', text='wake me up', ...}
         for example in progress_bar(examples, total=len(examples)):
-            # tokenizer: set padding to 'max_length', set truncation to True, set max_length to args.max_len
-            embed_data = tokenizer(...)
+            # tokenize sentence
+            embed_data = tokenizer(example['text'], padding='max_length', truncation=True, max_length=args.max_len)
 
+            # assign each label an index
             if example['label'] not in LABELS:
                 LABELS[example['label']] = len(LABELS)
             example['label'] = LABELS[example['label']]
             
             instance = BaseInstance(embed_data, example)
             feats.append(instance)
+
         print(embed_data, example)
         all_features[split] = feats
         print(f'Number of {split} features:', len(feats))
@@ -76,6 +79,7 @@ def prepare_features(args, data, tokenizer, cache_path):
 def process_data(args, features, tokenizer):
   train_size, dev_size = len(features['train']), len(features['validation'])
 
+  # maps each split (train, test, validation) to a ScenarioDataset class
   datasets = {}
   for split, feat in features.items():
       ins_data = feat
@@ -109,6 +113,9 @@ class ScenarioDataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx]
  
+    # allows us to design custom batches with DataLoader
+    # The "batch" is a list of BaseInstance class objects each corresponding
+    # to a specific input sample
     def collate_func(self, batch):
         input_ids = torch.tensor([f.embedding for f in batch], dtype=torch.long)
         segment_ids = torch.tensor([f.segments for f in batch], dtype=torch.long)

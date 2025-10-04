@@ -8,7 +8,7 @@ from torch import optim
 from torch.nn import functional as F
 
 from transformers import BertModel, BertConfig
-from transformers import AdamW, get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup
+# from transformers import AdamW, get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup
 
 class ScenarioModel(nn.Module):
   def __init__(self, args, tokenizer, target_size):
@@ -16,31 +16,22 @@ class ScenarioModel(nn.Module):
     self.tokenizer = tokenizer
     self.model_setup(args)
     self.target_size = target_size
-
-    # task1: add necessary class variables as you wish.
-    
-    # task2: initilize the dropout and classify layers
-    self.dropout = nn.Dropout(...)
-    self.classify = Classifier(...)
+    self.args = args
+    self.dropout = nn.Dropout(p=args.drop_rate)
+    self.classify = Classifier(args, target_size)
     
   def model_setup(self, args):
     print(f"Setting up {args.model} model")
-
-    # task1: get a pretrained model of 'bert-base-uncased'
-    self.encoder = BertModel.from_pretrained(...)
-    
+    self.encoder = BertModel.from_pretrained("bert-base-uncased")
     self.encoder.resize_token_embeddings(len(self.tokenizer))  # transformer_check
 
   def forward(self, inputs, targets):
-    """
-    task1: 
-        feeding the input to the encoder, 
-    task2: 
-        take the last_hidden_state's <CLS> token as output of the
-        encoder, feed it to a drop_out layer with the preset dropout rate in the argparse argument, 
-    task3:
-        feed the output of the dropout layer to the Classifier which is provided for you.
-    """
+    outputs = self.encoder(**inputs)
+    last_hidden_cls = outputs.last_hidden_state[:, 0, :]
+    cls_dropout = self.dropout(last_hidden_cls)
+
+    return self.classify(cls_dropout)
+
   
 class Classifier(nn.Module):
   def __init__(self, args, target_size):

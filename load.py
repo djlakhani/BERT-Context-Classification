@@ -6,7 +6,6 @@ def load_data():
     print(dataset)
     return dataset
 
-def load_tokenizer(args):
-    # task1: load bert tokenizer from pretrained "bert-base-uncased", you can also set truncation_side as "left" 
-    tokenizer = BertTokenizer.from_pretrained(...)
+def load_tokenizer(args): 
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", truncation_side="left")
     return tokenizer

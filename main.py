@@ -17,29 +17,26 @@ from torch import nn
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def baseline_train(args, model, datasets, tokenizer):
-    criterion = nn.CrossEntropyLoss()  # combines LogSoftmax() and NLLLoss()
-    # task1: setup train dataloader
-    train_dataloader = get_dataloader(...)
+    criterion = nn.CrossEntropyLoss()
+    train_dataloader = get_dataloader(args, datasets['train'], split='train')
 
-    # task2: setup model's optimizer_scheduler if you have
+    optimizer = torch.optim.Adam(model.parameters(), lr = args.learning_rate, eps = args.adam_epsilon)
     
-    # task3: write a training loop
     for epoch_count in range(args.n_epochs):
         losses = 0
         model.train()
 
-        for step, batch in progress_bar(...):
-            inputs, labels = prepare_inputs(...)
-            logits = model(...)
-            loss = criterion(...)
-            loss.backward()
+        for step, batch in progress_bar(enumerate(train_dataloader), total=len(train_dataloader)):
+            inputs, labels = prepare_inputs(batch)
+            logits = model(inputs, labels)
+            loss = criterion(logits, labels)
 
-            model.optimizer.step()  # backprop to update the weights
-            model.scheduler.step()  # Update learning rate schedule
-            model.zero_grad()
+            optimizer.zero_grad();
+            loss.backward();
+            optimizer.step();
             losses += loss.item()
     
-        run_eval(..., split='validation')
+        run_eval(args, model, datasets, tokenizer, split='validation')
         print('epoch', epoch_count, '| losses:', losses)
   
 def custom_train(args, model, datasets, tokenizer):
@@ -56,7 +53,11 @@ def run_eval(args, model, datasets, tokenizer, split='validation'):
 
     acc = 0
     for step, batch in progress_bar(enumerate(dataloader), total=len(dataloader)):
-        inputs, labels = prepare_inputs(batch, model)
+        # batch is a tuple with 5 elements and each element contains 16 (batch_size) objects
+        # The first is the input tokens,
+        # second is the input_ids, third is attention mask
+        # fourth is input labels, and finally text labels.
+        inputs, labels = prepare_inputs(batch)
         logits = model(inputs, labels)
         
         tem = (logits.argmax(1) == labels).float().sum()
