@@ -8,7 +8,6 @@ from torch import optim
 from torch.nn import functional as F
 
 from transformers import BertModel, BertConfig
-# from transformers import AdamW, get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup
 
 class ScenarioModel(nn.Module):
   def __init__(self, args, tokenizer, target_size):
@@ -51,22 +50,36 @@ class CustomModel(ScenarioModel):
   def __init__(self, args, tokenizer, target_size):
     super().__init__(args, tokenizer, target_size)
     
-    # task1: use initialization for setting different strategies/techniques to better fine-tune the BERT model
+    # use initialization for setting different strategies/techniques to better fine-tune the BERT model
 
 class SupConModel(ScenarioModel):
   def __init__(self, args, tokenizer, target_size, feat_dim=768):
     super().__init__(args, tokenizer, target_size)
 
-    # task1: initialize a linear head layer
+    # initialize a linear head layer
+    self.linear_supcon = nn.Linear(feat_dim, feat_dim)
  
   def forward(self, inputs, targets):
 
     """
-    task1: 
+    1: 
         feeding the input to the encoder, 
-    task2: 
+    2: 
         take the last_hidden_state's <CLS> token as output of the
         encoder, feed it to a drop_out layer with the preset dropout rate in the argparse argument, 
-    task3:
+    3:
         feed the normalized output of the dropout layer to the linear head layer; return the embedding
     """
+    features = self.encoder(**inputs)
+    features_dropout = self.dropout(features.last_hidden_state[:, 0, :])
+    features_normalized = torch.nn.functional.normalize(features_dropout, dim=1)
+    return self.linear_supcon(features_normalized)
+
+
+class SupConClassifierHead(nn.Module):
+  def __init__(self, hidden_dim=768, target_size=18):
+    super().__init__()
+    self.classifier = nn.Linear(hidden_dim, target_size)
+    
+  def forward(self, inputs, targets=None):
+    return self.classifier(inputs)
